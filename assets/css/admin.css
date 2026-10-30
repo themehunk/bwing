@@ -1,0 +1,76 @@
+/* BWing admin dashboard */
+.bwa { --a-brand: #5b3df5; --a-ink: #14142b; --a-muted: #6b6b85; --a-line: #e4e4ef; --a-soft: #f4f2ff; max-width: 1280px; }
+.bwa-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0 18px; }
+.bwa-brand { display: flex; gap: 14px; align-items: center; }
+.bwa-brand h1 { margin: 0; padding: 0; font-size: 24px; font-weight: 700; color: var(--a-ink); }
+.bwa-brand p { margin: 2px 0 0; color: var(--a-muted); }
+.bwa-logo { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-size: 22px; background: linear-gradient(135deg, #5b3df5, #00c2a8); box-shadow: 0 8px 20px rgba(91, 61, 245, .25); }
+.bwa-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--a-line); margin-bottom: 20px; }
+.bwa-tabs a { padding: 10px 14px; text-decoration: none; color: var(--a-muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.bwa-tabs a:hover { color: var(--a-ink); }
+.bwa-tabs a.is-active { color: var(--a-brand); border-color: var(--a-brand); }
+.bwa-card { background: #fff; border: 1px solid var(--a-line); border-radius: 14px; padding: 20px 22px; margin-bottom: 20px; }
+.bwa-card h2 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+.bwa-cardhead { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--a-line); padding-bottom: 12px; margin-bottom: 4px; }
+.bwa-cardhead h2 { margin: 0; }
+.bwa-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.bwa-stat { background: #fff; border: 1px solid var(--a-line); border-radius: 14px; padding: 16px; text-decoration: none; color: var(--a-ink); display: flex; flex-direction: column; gap: 4px; transition: border-color .15s, transform .15s; }
+a.bwa-stat:hover { border-color: var(--a-brand); transform: translateY(-1px); }
+.bwa-stat b { font-size: 26px; font-weight: 700; }
+.bwa-stat span { color: var(--a-muted); }
+.bwa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.bwa-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.bwa-two ol { margin-left: 18px; }
+.bwa-two small { color: var(--a-muted); }
+.bwa-log { background: var(--a-soft); border-radius: 8px; padding: 8px 12px 8px 26px; list-style: disc; }
+.bwa-h2 { margin-top: 28px; }
+.bwa-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 12px; }
+.bwa-section { background: #fff; border: 1px solid var(--a-line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.bwa-section .dashicons { color: var(--a-brand); background: var(--a-soft); border-radius: 8px; padding: 8px; width: 20px; height: 20px; }
+.bwa-section p { margin: 0; color: var(--a-muted); flex: 1; }
+.bwa-code { display: inline-flex; align-items: center; gap: 6px; background: var(--a-soft); border: 1px dashed #c9c1ff; border-radius: 8px; padding: 4px 4px 4px 10px; max-width: 100%; }
+.bwa-code code { background: none; padding: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bwa-split { display: grid; grid-template-columns: 230px 1fr; gap: 20px; align-items: start; }
+.bwa-side { background: #fff; border: 1px solid var(--a-line); border-radius: 14px; padding: 8px; position: sticky; top: 46px; }
+.bwa-side a { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px; color: var(--a-ink); text-decoration: none; }
+.bwa-side a:hover { background: #f6f6fa; }
+.bwa-side a.is-active { background: var(--a-soft); color: var(--a-brand); font-weight: 600; }
+.bwa-side .dashicons { font-size: 17px; width: 17px; height: 17px; }
+.bwa-repeater { font-size: 12.5px; line-height: 1.6; }
+.bwa-help { background: var(--a-soft); border-color: #ddd6ff; }
+.bwa-banner { display: flex; gap: 16px; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #f4f2ff, #e8fbf8); border: 1px solid #ddd6ff; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; }
+.bwa-filter { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.bwa-muted { color: var(--a-muted); }
+.bwa-table td { vertical-align: middle; }
+.bwa-table .bw-trend { font-weight: 600; font-size: 12px; }
+.bwa-table .bw-trend--up { color: #0fa968; }
+.bwa-table .bw-trend--down { color: #e5484d; }
+.bwa-switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+.bwa-switch input { opacity: 0; width: 0; height: 0; }
+.bwa-switch span { position: absolute; inset: 0; background: #ccc; border-radius: 22px; transition: .2s; cursor: pointer; }
+.bwa-switch span::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+.bwa-switch input:checked + span { background: var(--a-brand); }
+.bwa-switch input:checked + span::before { transform: translateX(18px); }
+.bwa-switch input:focus-visible + span { outline: 2px solid var(--a-brand); outline-offset: 2px; }
+.bwa-progress { height: 10px; border-radius: 99px; background: #eeeaf8; overflow: hidden; margin: 8px 0; }
+.bwa-progress[hidden] { display: none; }
+.bwa-progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5b3df5, #00c2a8); transition: width .3s; }
+.bwa-health { margin-top: 20px; }
+.bwa-checks { width: 100%; border-collapse: collapse; }
+.bwa-checks th, .bwa-checks td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--a-line); vertical-align: top; }
+.bwa-checks th { width: 220px; font-weight: 600; }
+.bwa-checks__icon { width: 26px; font-weight: 700; text-align: center !important; }
+.bwa-checks .is-ok .bwa-checks__icon { color: #0d9f62; }
+.bwa-checks .is-bad .bwa-checks__icon { color: #e0464b; }
+.bwa-checks .is-bad { background: #fff6f6; }
+.bwa-checks .is-info .bwa-checks__icon { color: #6b6b85; }
+.bwa-checks__fix { margin-top: 4px; color: #a1262b; font-size: 12.5px; }
+.bwa-actions { margin: 16px 0 6px; }
+.bwa-cron summary { cursor: pointer; font-weight: 600; margin-top: 8px; }
+.bwa-cron .bwa-code { display: flex; max-width: 100%; }
+.bwa-cron .bwa-code code { white-space: normal; word-break: break-all; }
+@media (max-width: 960px) {
+	.bwa-grid, .bwa-split, .bwa-two { grid-template-columns: 1fr; }
+	.bwa-side { position: static; }
+	.bwa-banner { flex-direction: column; align-items: flex-start; }
+}

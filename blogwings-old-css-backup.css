@@ -1,0 +1,117 @@
+h1, h2, h3, h4, h5, h6 ,p {
+    font-family: sans-serif;
+}
+
+
+.sidebar-wrapper {
+       box-shadow: 0 0 1px #DDD;
+    padding: 30px;
+background: #fcfcfc;
+}
+body {
+    background: #f8f8f8;
+-webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -moz-font-feature-settings: "liga" on;
+}
+.content ul.list-layout .post{
+padding:10px
+}
+.content {
+padding: 30px;
+}
+.single #page .content {
+background: #fff;
+padding: 30px;
+}
+.post-title h1 {
+line-height: 1.5em;
+}
+ul.list-layout .post .post-content {
+	width: 100%;
+   }
+.th-widget-recent-post .th-recent-post {
+    overflow: hidden;
+    padding: 0px 5px;
+}
+
+.content ul.list-layout .post {
+    background: none;
+}
+.content ul.list-layout .post {
+    background: #ffffff;
+    border: 2px #ffffff solid;
+}
+.content .post, .content .type-post {
+    margin-bottom: 30px;
+}
+
+
+.footer-copyright .social-icon i.fa, .footer-copyright .post-share i.fa {
+    color: #ffffff;
+    font-size:35px;
+    padding:0 15px;
+ 
+}
+a.button-def.wph-blog {
+    background:#23a8bc!important;
+    font-size: 15px!important;
+    padding: 8px 30px!important;
+    line-height: 16px!important;
+	  margin-top: 10px;
+    display: inline-block;
+}
+
+.footer-copyright .social-icon i.fa:hover{color:#eee;}
+
+header.smaller {
+    background: #23a8bc!important;
+}
+.two-grid-layout .post {
+background: #fcfcfc
+}
+.content {
+padding: 0;
+}
+.alignright {
+border: 2px solid rgba(187, 187, 187, 0.29);
+    padding: 2px;
+}
+.page header, .post header, .single header {
+    background-color: rgb(35, 168, 188);
+}
+header {
+    background-color: rgb(35, 168, 188);
+}
+.page #searchform #s, .page #searchform #s:focus, .page #searchform #s:hover, .page #searchform .icon-search:hover + #s, .post #searchform #s, .post #searchform #s:focus, .post #searchform #s:hover, .post #searchform .icon-search:hover + #s, .single #searchform #s, .single #searchform #s:focus, .single #searchform #s:hover, .single #searchform .icon-search:hover + #s {
+    border-bottom: 1px solid #fff;
+}
+.page #searchform .icon-search:before, .post #searchform .icon-search:before, .single #searchform .icon-search:before{
+color:#fff;
+}
+.home .navigation .menu > li > a{
+color:#000;
+}
+.home .smaller .navigation .menu > li > a, .navigation .menu > li > a{
+color:#fff;
+}
+
+.footer {
+padding:0px;
+}
+
+#comparision-table span.check-mark:before {
+content: "\f00c";
+font-family: fontawesome;
+font-size: 20px;
+color: #72a755;
+display: block;
+}
+#comparision-table span.red-cross:before {
+content: "\f00d";
+color: #e81123;
+font-family: fontawesome;
+font-size: 20px;
+display: block;
+}
