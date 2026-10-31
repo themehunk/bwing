@@ -9,7 +9,7 @@ defined( 'ABSPATH' ) || exit;
 
 class BWing_DB {
 
-	const DB_VERSION = '1.0.0';
+	const DB_VERSION = '1.1.0';
 
 	public static function table( $name ) {
 		global $wpdb;
@@ -40,6 +40,8 @@ class BWing_DB {
 			name varchar(255) NOT NULL DEFAULT '',
 			author varchar(191) NOT NULL DEFAULT '',
 			author_name varchar(255) NOT NULL DEFAULT '',
+			author_avatar varchar(500) NOT NULL DEFAULT '',
+			author_url varchar(500) NOT NULL DEFAULT '',
 			version varchar(50) NOT NULL DEFAULT '',
 			rating float NOT NULL DEFAULT 0,
 			num_ratings int(11) NOT NULL DEFAULT 0,

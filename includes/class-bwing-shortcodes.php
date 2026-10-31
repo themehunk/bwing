@@ -20,6 +20,12 @@ class BWing_Shortcodes {
 			'bwing_search'           => array( 'search', 'hero', __( 'Live search box for themes, plugins and authors.', 'bwing' ) ),
 			'bwing_counters'         => array( 'counters', 'hero', __( 'Stat counters (themes, plugins, authors, snapshots).', 'bwing' ) ),
 			'bwing_trending'         => array( 'trending', 'trending', __( 'Biggest moves: trending up / down. type="both|theme|plugin"', 'bwing' ) ),
+			'bwing_featured'         => array( 'featured', 'featured', __( 'Featured themes & plugins: pinned companies plus daily random picks. type="both|theme|plugin"', 'bwing' ) ),
+			'bwing_tools'            => array( 'tools', 'tools', __( 'AI tools directory (product finder) with search, categories and filters.', 'bwing' ) ),
+			'bwing_submit_tool'      => array( 'submit_tool', 'tools', __( 'Front-end form to submit an AI tool for review (requires login).', 'bwing' ) ),
+			'bwing_login'            => array( 'login', 'tools', __( 'Front-end log in form.', 'bwing' ) ),
+			'bwing_register'         => array( 'register_form', 'tools', __( 'Front-end registration form.', 'bwing' ) ),
+			'bwing_account'          => array( 'account', 'tools', __( 'Account page with the member\'s submissions and their status.', 'bwing' ) ),
 			'bwing_notable'          => array( 'notable', 'notable', __( 'Notable moves feed: bracket crossings, top-10, anomalies.', 'bwing' ) ),
 			'bwing_top'              => array( 'top', 'top_themes', __( 'Top free items list. type="theme|plugin" count="20"', 'bwing' ) ),
 			'bwing_top_premium'      => array( 'top_premium', 'premium_themes', __( 'Top premium items. type="theme|plugin"', 'bwing' ) ),
@@ -103,21 +109,75 @@ class BWing_Shortcodes {
 		foreach ( $types as $type ) {
 			$up   = BWing_Data::movers( $type, (int) $a['days'], (int) $a['min_installs'], (int) $a['count'], 'up' );
 			$down = BWing_Data::movers( $type, (int) $a['days'], (int) $a['min_installs'], (int) $a['count'], 'down' );
-			$col  = '<div class="bw-movers"><h3 class="bw-movers__title">' . esc_html( 'theme' === $type ? __( 'Themes', 'bwing' ) : __( 'Plugins', 'bwing' ) ) . '</h3><div class="bw-movers__grid">';
-			foreach ( array( 'up' => array( $up, __( 'Trending up', 'bwing' ) ), 'down' => array( $down, __( 'Trending down', 'bwing' ) ) ) as $dir => $set ) {
-				$col .= '<div class="bw-movers__list bw-movers__list--' . $dir . '"><h4>' . ( 'up' === $dir ? '↗ ' : '↘ ' ) . esc_html( $set[1] ) . '</h4>';
+			$label = 'theme' === $type ? __( 'Themes', 'bwing' ) : __( 'Plugins', 'bwing' );
+			$col   = '<div class="bw-movers bw-movers--' . $type . '"><div class="bw-movers__head"><h3 class="bw-movers__title">' . esc_html( $label ) . '</h3>'
+				. '<a class="bw-movers__all" href="' . esc_url( bwing_url( 'theme' === $type ? 'themes' : 'plugins' ) ) . '">' . esc_html__( 'Full ranking', 'bwing' ) . ' →</a></div><div class="bw-movers__grid">';
+			foreach ( array( 'up' => array( $up, __( 'Climbing', 'bwing' ) ), 'down' => array( $down, __( 'Falling', 'bwing' ) ) ) as $dir => $set ) {
+				$col .= '<div class="bw-movers__list bw-movers__list--' . $dir . '"><h4 class="bw-movers__label"><span aria-hidden="true">' . ( 'up' === $dir ? '▲' : '▼' ) . '</span>' . esc_html( $set[1] ) . '</h4>';
 				if ( $set[0] ) {
+					$col .= '<ol class="bw-movers__items">';
 					foreach ( $set[0] as $item ) {
-						$col .= BWing_Render::mover( $item, $type );
+						$col .= '<li>' . BWing_Render::mover( $item, $type ) . '</li>';
 					}
+					$col .= '</ol>';
 				} else {
-					$col .= '<p class="bw-muted">' . esc_html__( 'No movement in this window.', 'bwing' ) . '</p>';
+					$col .= '<p class="bw-muted bw-movers__empty">' . esc_html__( 'No movement in this window.', 'bwing' ) . '</p>';
 				}
 				$col .= '</div>';
 			}
 			$cols .= $col . '</div></div>';
 		}
 		return BWing_Render::wrap( 'trending', BWing_Render::head( $a['title'], $a['subtitle'] ) . '<div class="bw-movers-wrap bw-movers-wrap--' . count( $types ) . '">' . $cols . '</div>' );
+	}
+
+	public static function featured( $atts ) {
+		$a     = self::atts( 'featured', $atts, array( 'type' => 'both' ) );
+		$types = 'both' === $a['type'] ? array( 'theme', 'plugin' ) : array( 'plugin' === $a['type'] ? 'plugin' : 'theme' );
+		$cols  = '';
+		foreach ( $types as $type ) {
+			$rows = BWing_Data::featured( $type, $a );
+			$col  = '<div class="bw-feat bw-feat--' . $type . '"><div class="bw-movers__head"><h3 class="bw-movers__title">' . esc_html( 'theme' === $type ? __( 'Themes', 'bwing' ) : __( 'Plugins', 'bwing' ) ) . '</h3>'
+				. '<a class="bw-movers__all" href="' . esc_url( bwing_url( 'theme' === $type ? 'themes' : 'plugins' ) ) . '">' . esc_html__( 'Full ranking', 'bwing' ) . ' →</a></div>';
+			if ( $rows ) {
+				$col .= '<ul class="bw-feat__items">';
+				foreach ( $rows as $item ) {
+					$col .= '<li><a class="bw-feat__item' . ( $item->pinned ? ' is-pinned' : '' ) . '" href="' . esc_url( BWing_Format::item_url( $type, $item->slug ) ) . '">'
+						. BWing_Format::thumb( $item, 'bw-thumb bw-thumb--' . $type )
+						. '<span class="bw-feat__body"><strong title="' . esc_attr( $item->name ) . '">' . esc_html( $item->name ) . '</strong>'
+						. '<small>' . esc_html__( 'by', 'bwing' ) . ' ' . esc_html( $item->author_name ? $item->author_name : $item->author ) . '</small>'
+						. '<span class="bw-feat__meta"><b>' . esc_html( BWing_Format::installs( $item->active_installs ) ) . '</b> ' . esc_html__( 'installs', 'bwing' ) . ( $item->num_ratings ? ' · ' . esc_html( BWing_Format::stars( $item->rating ) ) . '★' : '' ) . '</span></span>'
+						. '<span class="bw-feat__badge">' . ( $item->pinned ? esc_html__( 'Featured', 'bwing' ) : esc_html__( "Today's pick", 'bwing' ) ) . '</span></a></li>';
+				}
+				$col .= '</ul>';
+			} else {
+				$col .= BWing_Render::empty_state( __( 'No data yet. Run a sync from the BWing dashboard.', 'bwing' ) );
+			}
+			$cols .= $col . '</div>';
+		}
+		return BWing_Render::wrap( 'featured', BWing_Render::head( $a['title'], $a['subtitle'] ) . '<div class="bw-feat-wrap bw-feat-wrap--' . count( $types ) . '">' . $cols . '</div>' );
+	}
+
+	public static function tools( $atts ) {
+		return BWing_Tools::directory( self::atts( 'tools', $atts ) );
+	}
+
+	public static function submit_tool( $atts ) {
+		return BWing_Tools::submit_form( self::atts( 'tools', $atts ) );
+	}
+
+	public static function login( $atts ) {
+		bwing_enqueue();
+		return BWing_Account::login_form();
+	}
+
+	public static function register_form( $atts ) {
+		bwing_enqueue();
+		return BWing_Account::register_form();
+	}
+
+	public static function account( $atts ) {
+		bwing_enqueue();
+		return BWing_Account::account();
 	}
 
 	public static function notable( $atts ) {
@@ -155,11 +215,19 @@ class BWing_Shortcodes {
 		$type    = isset( $atts['type'] ) && 'plugin' === $atts['type'] ? 'plugin' : 'theme';
 		$a       = self::atts( 'theme' === $type ? 'top_themes' : 'top_plugins', $atts, array( 'type' => $type ) );
 		$items   = BWing_Data::top_items( $type, (int) $a['count'] );
-		$list    = '';
-		foreach ( $items as $i => $item ) {
-			$list .= BWing_Render::rank_row( $i + 1, $item, $type, '<b>' . esc_html( BWing_Format::installs( $item->active_installs ) ) . '</b>' . BWing_Format::stars_html( $item->rating ) );
+		$show_dl = ! in_array( (string) $a['show_downloads'], array( '', '0', 'no', 'false' ), true );
+		if ( $show_dl ) {
+			$items = BWing_Data::attach_downloads( $items );
 		}
-		$body = $list ? '<ol class="bw-ranklist">' . $list . '</ol>' : BWing_Render::empty_state( __( 'No data yet. Run a sync from the BWing dashboard.', 'bwing' ) );
+		$list = '';
+		foreach ( $items as $i => $item ) {
+			$extra = $show_dl ? BWing_Render::downloads_strip( $item ) : '';
+			$list .= BWing_Render::rank_row( $i + 1, $item, $type, '<b>' . esc_html( BWing_Format::installs( $item->active_installs ) ) . '</b>' . BWing_Format::stars_html( $item->rating ), $extra );
+		}
+		if ( $list && $show_dl ) {
+			$list = BWing_Render::downloads_head( 'theme' === $type ? __( 'Theme', 'bwing' ) : __( 'Plugin', 'bwing' ) ) . $list;
+		}
+		$body = $list ? '<ol class="bw-ranklist' . ( $show_dl ? ' bw-ranklist--dl' : '' ) . '">' . $list . '</ol>' : BWing_Render::empty_state( __( 'No data yet. Run a sync from the BWing dashboard.', 'bwing' ) );
 		return BWing_Render::wrap( 'top-' . $type, BWing_Render::head( $a['title'], $a['subtitle'], 'h2', array( 'url' => $a['link_url'], 'text' => $a['link_text'] ) ) . $body );
 	}
 
@@ -173,7 +241,7 @@ class BWing_Shortcodes {
 				'<li class="bw-rank"><span class="bw-rank__n">%1$d</span><a class="bw-rank__link" href="%2$s">%3$s<span class="bw-rank__body"><strong>%4$s</strong><small>%5$s</small></span></a><span class="bw-rank__meta"><b>%6$s</b><small>%7$s</small></span></li>',
 				$i + 1,
 				esc_url( BWing_Format::premium_url( $type, $p->slug ) ),
-				BWing_Format::thumb( $p, 'bw-thumb bw-thumb--' . $type ),
+				BWing_Format::thumb( $p, 'bw-thumb bw-thumb--logo' ),
 				esc_html( $p->name ),
 				esc_html( $p->vendor ),
 				esc_html( BWing_Format::short( $p->live_sites ) ),
@@ -196,7 +264,7 @@ class BWing_Shortcodes {
 				'<li class="bw-rank"><span class="bw-rank__n">%1$d</span><a class="bw-rank__link" href="%2$s">%3$s<span class="bw-rank__body"><strong>%4$s</strong><small>@%5$s · %6$s</small></span></a><span class="bw-rank__meta"><b>%7$s</b></span></li>',
 				$i + 1,
 				esc_url( BWing_Format::author_url( $r->author ) ),
-				BWing_Format::avatar( $r->author ),
+				BWing_Format::avatar( $r->author, 64, BWing_Format::author_image( $r, 'theme' === $type ? 'brand' : 'photo' ) ),
 				esc_html( $r->author_name ? $r->author_name : $r->author ),
 				esc_html( $r->author ),
 				/* translators: %d items */
@@ -214,7 +282,7 @@ class BWing_Shortcodes {
 		$o = '<ol class="bw-mini">';
 		if ( 'author' === $a['type'] ) {
 			foreach ( BWing_Data::authors( array( 'per_page' => (int) $a['count'] ) )['rows'] as $i => $r ) {
-				$o .= '<li><a href="' . esc_url( BWing_Format::author_url( $r->author ) ) . '"><span class="bw-mini__n">' . ( $i + 1 ) . '</span>' . BWing_Format::avatar( $r->author ) . '<span class="bw-mini__name">' . esc_html( $r->author_name ? $r->author_name : $r->author ) . '</span><span class="bw-mini__v">' . esc_html( BWing_Format::short( $r->total, true ) ) . '</span></a></li>';
+				$o .= '<li><a href="' . esc_url( BWing_Format::author_url( $r->author ) ) . '"><span class="bw-mini__n">' . ( $i + 1 ) . '</span>' . BWing_Format::avatar( $r->author, 64, BWing_Format::author_image( $r ) ) . '<span class="bw-mini__name">' . esc_html( $r->author_name ? $r->author_name : $r->author ) . '</span><span class="bw-mini__v">' . esc_html( BWing_Format::short( $r->total, true ) ) . '</span></a></li>';
 			}
 		} else {
 			foreach ( BWing_Data::top_items( $a['type'], (int) $a['count'] ) as $i => $it ) {
@@ -467,7 +535,7 @@ class BWing_Shortcodes {
 			. $th( 'plugins', __( 'Plugins', 'bwing' ), 'bw-r' ) . $th( 'themes', __( 'Themes', 'bwing' ), 'bw-r' ) . $th( 'plugin_installs', __( 'Plugin installs', 'bwing' ), 'bw-r' ) . $th( 'theme_installs', __( 'Theme installs', 'bwing' ), 'bw-r' ) . $th( 'total', __( 'Total installs', 'bwing' ), 'bw-r' )
 			. '<th class="bw-r">' . esc_html__( '30-day trend', 'bwing' ) . '</th></tr></thead><tbody>';
 		foreach ( $res['rows'] as $i => $r ) {
-			$o .= '<tr><td class="bw-num">' . ( ( $res['page'] - 1 ) * $res['per'] + $i + 1 ) . '</td><td><a class="bw-cell-item" href="' . esc_url( BWing_Format::author_url( $r->author ) ) . '">' . BWing_Format::avatar( $r->author ) . '<span><strong>' . esc_html( $r->author_name ? $r->author_name : $r->author ) . '</strong><small>@' . esc_html( $r->author ) . '</small></span></a></td>'
+			$o .= '<tr><td class="bw-num">' . ( ( $res['page'] - 1 ) * $res['per'] + $i + 1 ) . '</td><td><a class="bw-cell-item" href="' . esc_url( BWing_Format::author_url( $r->author ) ) . '">' . BWing_Format::avatar( $r->author, 64, BWing_Format::author_image( $r ) ) . '<span><strong>' . esc_html( $r->author_name ? $r->author_name : $r->author ) . '</strong><small>@' . esc_html( $r->author ) . '</small></span></a></td>'
 				. '<td class="bw-r">' . (int) $r->plugins . '</td><td class="bw-r">' . (int) $r->themes . '</td><td class="bw-r">' . esc_html( BWing_Format::short( $r->plugin_installs, true ) ) . '</td><td class="bw-r">' . esc_html( BWing_Format::short( $r->theme_installs, true ) ) . '</td><td class="bw-r"><b>' . esc_html( BWing_Format::short( $r->total, true ) ) . '</b></td>'
 				. '<td class="bw-r"><span class="bw-trend bw-trend--' . ( $r->trend > 0 ? 'up' : ( $r->trend < 0 ? 'down' : 'flat' ) ) . '">' . esc_html( BWing_Format::signed( $r->trend ) ) . '</span></td></tr>';
 		}
@@ -555,7 +623,7 @@ class BWing_Shortcodes {
 		$list = function ( $rows, $metric ) {
 			$h = '<ol class="bw-mini">';
 			foreach ( $rows as $i => $r ) {
-				$h .= '<li><a href="' . esc_url( BWing_Format::author_url( $r->author ) ) . '"><span class="bw-mini__n">' . ( $i + 1 ) . '</span>' . BWing_Format::avatar( $r->author ) . '<span class="bw-mini__name">' . esc_html( $r->author_name ? $r->author_name : $r->author ) . '</span><span class="bw-mini__v">' . esc_html( $metric( $r ) ) . '</span></a></li>';
+				$h .= '<li><a href="' . esc_url( BWing_Format::author_url( $r->author ) ) . '"><span class="bw-mini__n">' . ( $i + 1 ) . '</span>' . BWing_Format::avatar( $r->author, 64, BWing_Format::author_image( $r ) ) . '<span class="bw-mini__name">' . esc_html( $r->author_name ? $r->author_name : $r->author ) . '</span><span class="bw-mini__v">' . esc_html( $metric( $r ) ) . '</span></a></li>';
 			}
 			return $h . '</ol>';
 		};

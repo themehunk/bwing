@@ -31,6 +31,7 @@ class BWing_Router {
 		foreach ( $map as $base => $type ) {
 			add_rewrite_rule( '^' . $base . '/([^/]+)/?$', 'index.php?bwing_type=' . $type . '&bwing_slug=$matches[1]', 'top' );
 		}
+		BWing_SEO::add_rules();
 	}
 
 	public static function query_vars( $vars ) {

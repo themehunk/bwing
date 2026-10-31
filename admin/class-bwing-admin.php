@@ -225,6 +225,14 @@ class BWing_Admin {
 				case 'editor':
 					wp_editor( $val, $id, array( 'textarea_name' => $name, 'textarea_rows' => 8, 'media_buttons' => false ) );
 					break;
+				case 'authors':
+					echo '<input type="text" class="regular-text" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $val ) . '" list="' . esc_attr( $id ) . '_list" placeholder="themehunk, automattic">';
+					echo '<datalist id="' . esc_attr( $id ) . '_list">';
+					foreach ( BWing_Data::authors( array( 'per_page' => 300 ) )['rows'] as $au ) {
+						echo '<option value="' . esc_attr( $au->author ) . '">' . esc_html( $au->author_name . ' · ' . $au->themes . 'T / ' . $au->plugins . 'P' ) . '</option>';
+					}
+					echo '</datalist><p class="description">' . esc_html__( 'Their themes and plugins are always shown. Start typing to search authors.', 'bwing' ) . '</p>';
+					break;
 				default:
 					echo '<input type="' . ( 'url' === $f[0] ? 'url' : 'text' ) . '" class="regular-text" id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $val ) . '">';
 			}

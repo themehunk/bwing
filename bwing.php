@@ -3,7 +3,7 @@
  * Plugin Name:       BWing
  * Plugin URI:        https://example.com/bwing
  * Description:       Daily rankings tracker for WordPress.org themes, plugins and authors. Premium rankings, theme & plugin detector, hosting checker, statistics, notable moves, FAQ and newsletter — every section has a dashboard and a shortcode. Built to pair with the BlogWings theme.
- * Version:           1.3.0
+ * Version:           1.5.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            BlogWings
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BWING_VERSION', '1.3.0' );
+define( 'BWING_VERSION', '1.5.1' );
 define( 'BWING_FILE', __FILE__ );
 define( 'BWING_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BWING_URL', plugin_dir_url( __FILE__ ) );
@@ -28,9 +28,12 @@ require_once BWING_DIR . 'includes/class-bwing-sync.php';
 require_once BWING_DIR . 'includes/class-bwing-seed.php';
 require_once BWING_DIR . 'includes/class-bwing-detector.php';
 require_once BWING_DIR . 'includes/class-bwing-router.php';
+require_once BWING_DIR . 'includes/class-bwing-seo.php';
 require_once BWING_DIR . 'includes/class-bwing-shortcodes.php';
 require_once BWING_DIR . 'includes/class-bwing-ajax.php';
 require_once BWING_DIR . 'includes/class-bwing-pages.php';
+require_once BWING_DIR . 'includes/class-bwing-tools.php';
+require_once BWING_DIR . 'includes/class-bwing-account.php';
 
 if ( is_admin() ) {
 	require_once BWING_DIR . 'admin/class-bwing-admin.php';
@@ -43,6 +46,7 @@ function bwing_activate() {
 	BWing_DB::install();
 	BWing_Settings::install_defaults();
 	BWing_Seed::run();
+	BWing_Tools::seed();
 	BWing_Pages::create();
 	if ( ! wp_next_scheduled( 'bwing_daily_sync' ) ) {
 		wp_schedule_event( strtotime( 'tomorrow 03:00' ), 'daily', 'bwing_daily_sync' );
@@ -62,8 +66,13 @@ add_action( 'plugins_loaded', function () {
 	load_plugin_textdomain( 'bwing', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 	BWing_DB::maybe_upgrade();
 } );
+add_action( 'init', array( 'BWing_Pages', 'migrate' ), 20 );
+add_action( 'init', array( 'BWing_Pages', 'migrate_tools' ), 21 );
 
 add_action( 'init', array( 'BWing_Router', 'init' ) );
+add_action( 'init', array( 'BWing_SEO', 'init' ) );
+add_action( 'init', array( 'BWing_Tools', 'init' ) );
+add_action( 'init', array( 'BWing_Account', 'init' ) );
 add_action( 'init', array( 'BWing_Shortcodes', 'register' ) );
 add_action( 'init', array( 'BWing_Ajax', 'init' ) );
 add_action( 'bwing_daily_sync', array( 'BWing_Sync', 'run_all' ) );

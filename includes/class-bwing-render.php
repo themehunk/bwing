@@ -46,29 +46,63 @@ class BWing_Render {
 	}
 
 	/** Numbered rank row used in "Top" lists. */
-	public static function rank_row( $n, $item, $type, $meta ) {
+	public static function rank_row( $n, $item, $type, $meta, $extra = '' ) {
 		$url = BWing_Format::item_url( $type, $item->slug );
 		return sprintf(
-			'<li class="bw-rank"><span class="bw-rank__n">%1$s</span><a class="bw-rank__link" href="%2$s">%3$s<span class="bw-rank__body"><strong>%4$s</strong><small>%5$s</small></span></a><span class="bw-rank__meta">%6$s</span></li>',
+			'<li class="bw-rank%7$s"><span class="bw-rank__n">%1$s</span><a class="bw-rank__link" href="%2$s">%3$s<span class="bw-rank__body"><strong>%4$s</strong><small>%5$s</small></span></a><span class="bw-rank__meta">%6$s</span>%8$s</li>',
 			esc_html( $n ),
 			esc_url( $url ),
 			BWing_Format::thumb( $item, 'bw-thumb bw-thumb--' . $type ),
 			esc_html( $item->name ),
 			esc_html( $item->author_name ? $item->author_name : $item->author ),
-			$meta
+			$meta,
+			$extra ? ' bw-rank--dl' : '',
+			$extra
 		);
+	}
+
+	/** Download columns for a ranking row: Today, 7 days, 30 days. */
+	public static function download_labels() {
+		return array(
+			'dl1'  => __( 'Today', 'bwing' ),
+			'dl7'  => __( '7 days', 'bwing' ),
+			'dl30' => __( '30 days', 'bwing' ),
+		);
+	}
+
+	public static function downloads_strip( $item ) {
+		$o = '';
+		foreach ( self::download_labels() as $key => $label ) {
+			$v  = isset( $item->$key ) ? $item->$key : null;
+			$o .= '<span class="bw-rank__dl bw-rank__dl--' . $key . '"><b>' . esc_html( null === $v ? '—' : BWing_Format::short( $v ) ) . '</b><small>' . esc_html( $label ) . '</small></span>';
+		}
+		return $o;
+	}
+
+	/** Column header row for a ranking list with download columns. */
+	public static function downloads_head( $noun ) {
+		$o = '<li class="bw-rank bw-rank--dl bw-rank--head" aria-hidden="true"><span class="bw-rank__n">#</span><span class="bw-rank__link">' . esc_html( $noun ) . '</span><span class="bw-rank__meta">' . esc_html__( 'Installs', 'bwing' ) . '</span>';
+		foreach ( self::download_labels() as $key => $label ) {
+			$o .= '<span class="bw-rank__dl bw-rank__dl--' . $key . '">' . esc_html( $label ) . '</span>';
+		}
+		return $o . '</li>';
 	}
 
 	/** Compact mover card. */
 	public static function mover( $item, $type ) {
+		$delta = (int) $item->delta;
+		$from  = (int) $item->pos + $delta;
 		return sprintf(
-			'<a class="bw-mover" href="%1$s">%2$s<span class="bw-mover__body"><strong>%3$s</strong><small>#%4$d · %5$s</small></span>%6$s</a>',
+			'<a class="bw-mover bw-mover--%1$s" href="%2$s">%3$s<span class="bw-mover__body"><strong title="%4$s">%4$s</strong><small><span class="bw-mover__path">#%5$d → <b>#%6$d</b></span> · %7$s</small></span><span class="bw-mover__delta">%8$s%9$s</span></a>',
+			$delta > 0 ? 'up' : 'down',
 			esc_url( BWing_Format::item_url( $type, $item->slug ) ),
 			BWing_Format::thumb( $item, 'bw-thumb bw-thumb--sm bw-thumb--' . $type ),
 			esc_html( $item->name ),
+			$from,
 			(int) $item->pos,
 			esc_html( BWing_Format::installs( $item->active_installs ) ),
-			BWing_Format::trend( (int) $item->delta )
+			$delta > 0 ? '▲' : '▼',
+			esc_html( number_format_i18n( abs( $delta ) ) )
 		);
 	}
 

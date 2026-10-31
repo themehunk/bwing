@@ -23,7 +23,7 @@ class BWing_Pages {
 	public static function definitions() {
 		$home = self::sc( '[bwing_hero]' )
 			. self::sc( '[bwing_trending type="both"]' )
-			. self::sc( '[bwing_notable]' )
+			. self::sc( '[bwing_featured]' )
 			. self::pair( '[bwing_top type="theme"]', '[bwing_top type="plugin"]' )
 			. self::pair( '[bwing_top_premium type="theme"]', '[bwing_top_premium type="plugin"]' )
 			. self::pair( '[bwing_top_authors type="theme"]', '[bwing_top_authors type="plugin"]' )
@@ -47,10 +47,102 @@ class BWing_Pages {
 			'authors'                  => array( __( 'WordPress.org Authors', 'bwing' ), self::sc( '[bwing_subnav group="authors" current="authors"]' ) . self::sc( '[bwing_authors]' ), 1 ),
 			'theme-detector'           => array( __( 'WordPress Theme Detector', 'bwing' ), self::sc( '[bwing_subnav group="tools" current="theme-detector"]' ) . self::sc( '[bwing_detector]' ), 1 ),
 			'hosting-checker'          => array( __( 'Hosting Checker', 'bwing' ), self::sc( '[bwing_subnav group="tools" current="hosting-checker"]' ) . self::sc( '[bwing_hosting_checker]' ), 1 ),
+			'ai-tools'                 => array( __( 'Best AI Tools & Websites', 'bwing' ), self::sc( '[bwing_tools]' ), 1 ),
+			'submit-tool'              => array( __( 'Submit an AI Tool', 'bwing' ), self::sc( '[bwing_submit_tool]' ), 1 ),
+			'login'                    => array( __( 'Log in', 'bwing' ), self::sc( '[bwing_login]' ), 1 ),
+			'register'                 => array( __( 'Create an account', 'bwing' ), self::sc( '[bwing_register]' ), 1 ),
+			'account'                  => array( __( 'My account', 'bwing' ), self::sc( '[bwing_account]' ), 1 ),
 			'about'                    => array( __( 'About', 'bwing' ), "<!-- wp:paragraph {\"className\":\"bw-lead\"} -->\n<p class=\"bw-lead\">" . esc_html__( 'BlogWings tracks the WordPress ecosystem every single day so you can see what is really growing — not just what has the biggest number.', 'bwing' ) . "</p>\n<!-- /wp:paragraph -->\n\n" . self::sc( '[bwing_counters]' ) . self::sc( '[bwing_text section="about"]' ) . self::sc( '[bwing_text section="ecosystem"]' ) . self::sc( '[bwing_beyond]' ) . self::sc( '[bwing_newsletter]' ), 0 ),
 			'blog'                     => array( __( 'Blog', 'bwing' ), '', 0 ),
 			'privacy-policy'           => array( __( 'Privacy Policy', 'bwing' ), "<!-- wp:paragraph -->\n<p>" . esc_html__( 'We collect only what is needed to run this site: anonymous analytics, the email address you give us for the newsletter, and the domains you scan with our tools. We never sell data. Contact us to have your email removed at any time.', 'bwing' ) . "</p>\n<!-- /wp:paragraph -->", 0 ),
 		);
+	}
+
+	/** One-time content updates for sites created by an older version. */
+	public static function migrate() {
+		if ( (int) get_option( 'bwing_pages_rev' ) >= 2 ) {
+			return;
+		}
+		$map = get_option( self::OPTION, array() );
+		if ( ! empty( $map['home'] ) ) {
+			$home = get_post( $map['home'] );
+			if ( $home && false !== strpos( $home->post_content, '[bwing_notable]' ) ) {
+				wp_update_post( array( 'ID' => $home->ID, 'post_content' => str_replace( '[bwing_notable]', '[bwing_featured]', $home->post_content ) ) );
+			}
+		}
+		if ( (int) get_option( 'bwing_pages_rev' ) < 2 ) {
+			update_option( 'bwing_pages_rev', 2 );
+		}
+	}
+
+	/** v1.5: AI tools directory, account pages and the AI Tools menu. */
+	public static function migrate_tools() {
+		global $wpdb;
+		if ( (int) get_option( 'bwing_pages_rev' ) >= 3 || wp_doing_cron() || wp_doing_ajax() ) {
+			return;
+		}
+		// Atomic lock: page loads and the cron loopback can arrive at the same moment.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = 'bwing_lock_tools' AND option_value < %d", time() - 300 ) );
+		if ( ! $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES ('bwing_lock_tools', %d, 'no')", time() ) ) ) {
+			return;
+		}
+		BWing_Tools::seed();
+		self::create();
+		$map = get_option( self::OPTION, array() );
+		$m   = (int) get_option( 'bwing_menu_primary' );
+		if ( $m && wp_get_nav_menu_object( $m ) ) {
+			self::tools_menu( $m, $map );
+		}
+		update_option( 'bwing_pages_rev', 3 );
+		$wpdb->delete( $wpdb->options, array( 'option_name' => 'bwing_lock_tools' ) );
+	}
+
+	/** Adds the "AI Tools" dropdown before "Blog" (or at the end). */
+	public static function tools_menu( $menu_id, $map ) {
+		$items = wp_get_nav_menu_items( $menu_id );
+		foreach ( (array) $items as $it ) {
+			if ( ! empty( $map['ai-tools'] ) && (int) $it->object_id === (int) $map['ai-tools'] && 0 === (int) $it->menu_item_parent ) {
+				return; // Already there.
+			}
+		}
+		$children = array(
+			array( 'ai-tools', __( 'All AI tools', 'bwing' ), '' ),
+			array( 'ai-tools', __( 'Chat & assistants', 'bwing' ), 'chat' ),
+			array( 'ai-tools', __( 'Image generators', 'bwing' ), 'image' ),
+			array( 'ai-tools', __( 'Video tools', 'bwing' ), 'video' ),
+			array( 'ai-tools', __( 'Writing tools', 'bwing' ), 'writing' ),
+			array( 'ai-tools', __( 'Coding tools', 'bwing' ), 'code' ),
+			array( 'submit-tool', __( 'Submit a tool', 'bwing' ), '' ),
+		);
+		// Make room before "Blog".
+		$pos = 0;
+		foreach ( (array) $items as $it ) {
+			if ( ! empty( $map['blog'] ) && (int) $it->object_id === (int) $map['blog'] && 0 === (int) $it->menu_item_parent ) {
+				$pos = (int) $it->menu_order;
+			}
+		}
+		if ( $pos ) {
+			foreach ( (array) $items as $it ) {
+				if ( (int) $it->menu_order >= $pos ) {
+					wp_update_post( array( 'ID' => $it->ID, 'menu_order' => (int) $it->menu_order + count( $children ) + 1 ) );
+				}
+			}
+		} else {
+			$pos = count( (array) $items ) + 1;
+		}
+		$item = function ( $slug, $title, $parent, $position, $cat = '' ) use ( $menu_id, $map ) {
+			$args = array( 'menu-item-title' => $title, 'menu-item-status' => 'publish', 'menu-item-parent-id' => $parent, 'menu-item-position' => $position );
+			if ( ! $cat && ! empty( $map[ $slug ] ) ) {
+				$args += array( 'menu-item-object' => 'page', 'menu-item-object-id' => $map[ $slug ], 'menu-item-type' => 'post_type' );
+			} else {
+				$args += array( 'menu-item-type' => 'custom', 'menu-item-url' => $cat ? add_query_arg( 'tool_cat', $cat, bwing_url( $slug ) ) : bwing_url( $slug ) );
+			}
+			return wp_update_nav_menu_item( $menu_id, 0, $args );
+		};
+		$parent = $item( 'ai-tools', __( 'AI Tools', 'bwing' ), 0, $pos );
+		foreach ( $children as $i => $c ) {
+			$item( $c[0], $c[1], $parent, $pos + 1 + $i, $c[2] );
+		}
 	}
 
 	public static function create( $force = false ) {
@@ -139,12 +231,13 @@ class BWing_Pages {
 				$link( $m, 'blog', __( 'Blog', 'bwing' ) );
 				$link( $m, 'about', __( 'About', 'bwing' ) );
 				update_option( 'bwing_menu_primary', $m );
+				self::tools_menu( $m, $map );
 			}
 		}
 		if ( ! wp_get_nav_menu_object( 'BWing Footer' ) ) {
 			$f = wp_create_nav_menu( 'BWing Footer' );
 			if ( ! is_wp_error( $f ) ) {
-				foreach ( array( 'about' => __( 'About', 'bwing' ), 'blog' => __( 'Blog', 'bwing' ), 'theme-detector' => __( 'Theme detector', 'bwing' ), 'hosting-checker' => __( 'Hosting checker', 'bwing' ), 'privacy-policy' => __( 'Privacy policy', 'bwing' ) ) as $slug => $title ) {
+				foreach ( array( 'about' => __( 'About', 'bwing' ), 'blog' => __( 'Blog', 'bwing' ), 'theme-detector' => __( 'Theme detector', 'bwing' ), 'hosting-checker' => __( 'Hosting checker', 'bwing' ), 'ai-tools' => __( 'AI tools', 'bwing' ), 'submit-tool' => __( 'Submit a tool', 'bwing' ), 'privacy-policy' => __( 'Privacy policy', 'bwing' ) ) as $slug => $title ) {
 					$link( $f, $slug, $title );
 				}
 				update_option( 'bwing_menu_footer', $f );

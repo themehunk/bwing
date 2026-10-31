@@ -56,12 +56,32 @@ class BWing_Data {
 		}
 		$t    = BWing_DB::table( 'snapshots' );
 		$in   = implode( ',', $ids );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, pos, active_installs FROM {$t} WHERE snap_date = %s AND item_id IN ({$in})", $d ) ); // phpcs:ignore
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, pos, active_installs, downloaded FROM {$t} WHERE snap_date = %s AND item_id IN ({$in})", $d ) ); // phpcs:ignore
 		$out  = array();
 		foreach ( $rows as $r ) {
 			$out[ (int) $r->item_id ] = $r;
 		}
 		return $out;
+	}
+
+	/**
+	 * Attach dl1/dl7/dl30 download counts (today, last 7 days, last 30 days) from the
+	 * difference in cumulative downloads between snapshots. null = not enough history.
+	 */
+	public static function attach_downloads( $rows ) {
+		if ( ! $rows ) {
+			return $rows;
+		}
+		$ids = wp_list_pluck( $rows, 'id' );
+		foreach ( array( 1, 7, 30 ) as $w ) {
+			$past = self::positions_at( $ids, $w );
+			$key  = 'dl' . $w;
+			foreach ( $rows as $row ) {
+				$diff      = isset( $past[ $row->id ] ) && $past[ $row->id ]->downloaded > 0 ? (int) $row->downloaded - (int) $past[ $row->id ]->downloaded : -1;
+				$row->$key = $diff >= 0 ? $diff : null; // Negative = history from another data source (e.g. demo).
+			}
+		}
+		return $rows;
 	}
 
 	/** Attach d1/d7/d30 deltas to rows (null = new, false = no data). */
@@ -235,6 +255,70 @@ class BWing_Data {
 		) ); // phpcs:ignore
 	}
 
+	/**
+	 * Featured items for one column: pinned authors / items first, then random
+	 * picks from the top-ranked pool that stay the same for the whole day.
+	 *
+	 * @param string $type theme|plugin.
+	 * @param array  $a    Featured section settings.
+	 * @return object[] Rows with ->pinned set.
+	 */
+	public static function featured( $type, $a ) {
+		global $wpdb;
+		$t       = BWing_DB::table( 'items' );
+		$count   = max( 1, (int) $a['count'] );
+		$seed    = absint( crc32( current_time( 'Y-m-d' ) . $type ) ) % 2147483647;
+		$authors = array_filter( array_map( 'sanitize_title', explode( ',', (string) $a['pinned_authors'] ) ) );
+		$slugs   = array();
+		foreach ( BWing_Settings::rows( $a['pinned_items'] ) as $r ) {
+			if ( isset( $r[1] ) && $type === strtolower( $r[0] ) ) {
+				$slugs[] = sanitize_title( $r[1] );
+			}
+		}
+
+		$pinned = array();
+		if ( $authors || $slugs ) {
+			$cond = array();
+			$args = array( $type );
+			if ( $authors ) {
+				$cond[] = 'author IN (' . implode( ',', array_fill( 0, count( $authors ), '%s' ) ) . ')';
+				$args   = array_merge( $args, $authors );
+			}
+			if ( $slugs ) {
+				$cond[] = 'slug IN (' . implode( ',', array_fill( 0, count( $slugs ), '%s' ) ) . ')';
+				$args   = array_merge( $args, $slugs );
+			}
+			$pinned = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE type = %s AND (" . implode( ' OR ', $cond ) . ') ORDER BY active_installs DESC', $args ) ); // phpcs:ignore
+			$room   = min( $count, (int) ( 'theme' === $type ? $a['pinned_themes'] : $a['pinned_plugins'] ) );
+			if ( count( $pinned ) > $room ) {
+				// More pinned items than slots: rotate them daily, best-known first.
+				$keep   = array_slice( $pinned, 0, 1 );
+				$rest   = array_slice( $pinned, 1 );
+				mt_srand( $seed );
+				shuffle( $rest );
+				mt_srand();
+				$pinned = $room > 0 ? array_merge( $keep, array_slice( $rest, 0, $room - 1 ) ) : array();
+			}
+			foreach ( $pinned as $p ) {
+				$p->pinned = true;
+			}
+		}
+
+		$need = $count - count( $pinned );
+		$pick = array();
+		if ( $need > 0 ) {
+			$skip = $pinned ? ' AND id NOT IN (' . implode( ',', array_map( 'absint', wp_list_pluck( $pinned, 'id' ) ) ) . ')' : '';
+			$pick = $wpdb->get_results( $wpdb->prepare(
+				"SELECT * FROM {$t} WHERE type = %s AND pos BETWEEN 1 AND %d AND active_installs >= %d{$skip} ORDER BY RAND(%d) LIMIT %d",
+				$type, max( $need, (int) $a['random_pool'] ), (int) $a['random_min'], $seed, $need
+			) ); // phpcs:ignore
+			foreach ( $pick as $p ) {
+				$p->pinned = false;
+			}
+		}
+		return array_merge( $pinned, $pick );
+	}
+
 	public static function bracket( $n ) {
 		foreach ( BWing_Format::BRACKETS as $b ) {
 			if ( $n >= $b ) {
@@ -328,7 +412,7 @@ class BWing_Data {
 		$off   = ( max( 1, (int) $a['page'] ) - 1 ) * $per;
 
 		$total = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT author) FROM {$i} {$where}" ); // phpcs:ignore
-		$rows  = $wpdb->get_results( "SELECT author, MAX(author_name) AS author_name,
+		$rows  = $wpdb->get_results( "SELECT author, MAX(author_name) AS author_name, MAX(author_avatar) AS author_avatar, MAX(author_url) AS author_url,
 				SUM(type='plugin') AS plugins, SUM(type='theme') AS themes,
 				SUM(IF(type='plugin', active_installs, 0)) AS plugin_installs,
 				SUM(IF(type='theme', active_installs, 0)) AS theme_installs,
@@ -371,13 +455,51 @@ class BWing_Data {
 	public static function premium( $type = 'theme', $limit = 20, $offset = 0 ) {
 		global $wpdb;
 		$t = BWing_DB::table( 'premium' );
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE type = %s ORDER BY live_sites DESC, sort_order ASC LIMIT %d, %d", $type, $offset, $limit ) );
+		return self::premium_logos( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$t} WHERE type = %s ORDER BY live_sites DESC, sort_order ASC LIMIT %d, %d", $type, $offset, $limit ) ) );
 	}
 
 	public static function premium_item( $type, $slug ) {
 		global $wpdb;
 		$t = BWing_DB::table( 'premium' );
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE type = %s AND slug = %s", $type, $slug ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE type = %s AND slug = %s", $type, $slug ) );
+		return $row ? self::premium_logos( array( $row ) )[0] : null;
+	}
+
+	/**
+	 * Fill in a brand logo for premium rows without an uploaded image: the free
+	 * WordPress.org version's icon when there is one, else the vendor site's icon.
+	 */
+	public static function premium_logos( $rows ) {
+		global $wpdb;
+		$need = array();
+		foreach ( $rows as $r ) {
+			if ( ! $r->image && $r->free_slug ) {
+				$need[ $r->type ][] = $r->free_slug;
+			}
+		}
+		$free = array();
+		foreach ( $need as $type => $slugs ) {
+			$t   = BWing_DB::table( 'items' );
+			$in  = implode( ',', array_fill( 0, count( $slugs ), '%s' ) );
+			$res = $wpdb->get_results( $wpdb->prepare( "SELECT slug, image FROM {$t} WHERE type = %s AND slug IN ({$in})", array_merge( array( $type ), $slugs ) ) ); // phpcs:ignore
+			foreach ( $res as $f ) {
+				$free[ $type . ':' . $f->slug ] = $f->image;
+			}
+		}
+		foreach ( $rows as $r ) {
+			if ( $r->image ) {
+				continue;
+			}
+			// A theme screenshot is not a logo, so only plugins borrow the free version's image.
+			if ( 'plugin' === $r->type && ! empty( $free[ $r->type . ':' . $r->free_slug ] ) ) {
+				$r->image = $free[ $r->type . ':' . $r->free_slug ];
+			} elseif ( $r->url ) {
+				$host = wp_parse_url( $r->url, PHP_URL_HOST );
+				$r->image = $host ? apply_filters( 'bwing_brand_logo_url', 'https://www.google.com/s2/favicons?sz=128&domain=' . rawurlencode( $host ), $host, $r ) : '';
+			}
+			$r->auto_logo = true;
+		}
+		return $rows;
 	}
 
 	public static function premium_rank( $p ) {

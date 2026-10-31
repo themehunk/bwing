@@ -120,9 +120,32 @@ class BWing_Format {
 		return '<span class="' . esc_attr( $class ) . ' bw-thumb--letter" style="--h:' . (int) $hue . '">' . esc_html( $letter ) . '</span>';
 	}
 
-	public static function avatar( $author, $size = 64 ) {
+	/**
+	 * Author picture: an image when one is known, else a coloured letter badge.
+	 *
+	 * @param string $author Author slug.
+	 * @param int    $size   Unused, kept for back-compat.
+	 * @param string $img    Image URL.
+	 */
+	public static function avatar( $author, $size = 64, $img = '' ) {
+		if ( $img ) {
+			return '<img class="bw-avatar bw-avatar--img" src="' . esc_url( $img ) . '" alt="" loading="lazy" decoding="async">';
+		}
 		$hue  = abs( crc32( $author ) ) % 360;
 		return '<span class="bw-avatar" style="--h:' . (int) $hue . '">' . esc_html( strtoupper( mb_substr( $author, 0, 1 ) ) ) . '</span>';
+	}
+
+	/**
+	 * Image URL for an author row (needs author_avatar / author_url).
+	 *
+	 * @param object $r    Author row.
+	 * @param string $mode 'brand' = company logo from the author website, 'photo' = WordPress.org profile photo.
+	 */
+	public static function author_image( $r, $mode = 'photo' ) {
+		$photo = isset( $r->author_avatar ) ? $r->author_avatar : '';
+		$host  = ! empty( $r->author_url ) ? wp_parse_url( $r->author_url, PHP_URL_HOST ) : '';
+		$brand = $host ? apply_filters( 'bwing_brand_logo_url', 'https://www.google.com/s2/favicons?sz=128&domain=' . rawurlencode( $host ), $host, $r ) : '';
+		return 'brand' === $mode ? ( $brand ? $brand : $photo ) : ( $photo ? $photo : $brand );
 	}
 
 	public static function date( $date ) {

@@ -44,7 +44,7 @@ class BWing_Single {
 
 		$o  = '<a class="bw-back" href="' . esc_url( $list ) . '">← ' . esc_html( sprintf( /* translators: %s noun */ __( 'All popular %ss', 'bwing' ), $noun ) ) . '</a>';
 		$o .= '<header class="bw-itemhead bw-itemhead--' . esc_attr( $type ) . '">' . BWing_Format::thumb( $item, 'bw-itemhead__img' ) . '<div class="bw-itemhead__body">';
-		$o .= '<div class="bw-itemhead__tags">' . ( 'theme' === $type ? '<span class="bw-tag' . ( $item->is_block ? ' bw-tag--block' : '' ) . '">' . esc_html( $item->is_block ? __( 'Block', 'bwing' ) : __( 'Classic', 'bwing' ) ) . '</span>' : '' ) . ( $premium ? '<span class="bw-tag bw-tag--premium">' . esc_html__( 'Premium available', 'bwing' ) . '</span>' : '' ) . '<span class="bw-tag bw-tag--rank">#' . (int) $item->pos . '</span></div>';
+		$o .= '<div class="bw-itemhead__tags">' . ( 'theme' === $type ? '<span class="bw-tag' . ( $item->is_block ? ' bw-tag--block' : '' ) . '">' . esc_html( $item->is_block ? __( 'Block', 'bwing' ) : __( 'Classic', 'bwing' ) ) . '</span>' : '' ) . ( $premium ? '<span class="bw-tag bw-tag--premium">' . esc_html__( 'Premium available', 'bwing' ) . '</span>' : '' ) . ( $item->pos > 0 ? '<span class="bw-tag bw-tag--rank">#' . (int) $item->pos . '</span>' : '' ) . '</div>';
 		$o .= '<h1>' . esc_html( $item->name ) . '</h1>';
 		$o .= '<p class="bw-itemhead__by">' . esc_html__( 'by', 'bwing' ) . ' <a href="' . esc_url( BWing_Format::author_url( $item->author ) ) . '">' . esc_html( $item->author_name ? $item->author_name : $item->author ) . '</a> · ' . BWing_Format::stars_html( $item->rating, $item->num_ratings ) . '</p>';
 		$o .= '<div class="bw-itemhead__actions"><a class="bw-btn bw-btn--primary bw-btn--sm" href="' . esc_url( BWing_Format::wporg_url( $type, $item->slug ) ) . '" target="_blank" rel="noopener nofollow">WordPress.org ↗</a>';
@@ -55,6 +55,7 @@ class BWing_Single {
 			$o .= '<a class="bw-btn bw-btn--ghost bw-btn--sm" href="' . esc_url( $item->homepage ) . '" target="_blank" rel="noopener nofollow">' . esc_html__( 'Homepage', 'bwing' ) . '</a>';
 		}
 		$o .= '</div></div></header>';
+		$o .= '<p class="bw-lead bw-summary">' . esc_html( BWing_SEO::item_summary( $item ) ) . '</p>';
 
 		if ( $premium ) {
 			$o .= '<a class="bw-callout" href="' . esc_url( BWing_Format::premium_url( $premium->type, $premium->slug ) ) . '"><span>★</span><div><strong>' . esc_html( $premium->name ) . '</strong> ' . esc_html__( 'from', 'bwing' ) . ' ' . esc_html( $premium->price ) . ' · ' . esc_html( BWing_Format::short( $premium->live_sites ) ) . ' ' . esc_html__( 'live sites', 'bwing' ) . '</div><em>' . esc_html__( 'Premium stats →', 'bwing' ) . '</em></a>';
@@ -62,7 +63,7 @@ class BWing_Single {
 
 		$o .= '<div class="bw-statgrid bw-statgrid--6">'
 			. BWing_Render::stat( BWing_Format::installs( $item->active_installs ), __( 'Active installs', 'bwing' ), sprintf( /* translators: %s pct */ __( '%s%% of tracked installs', 'bwing' ), $share ) )
-			. BWing_Render::stat( '#' . (int) $item->pos, __( 'Rank', 'bwing' ), sprintf( /* translators: %d peak */ __( 'Peak #%d', 'bwing' ), $item->peak_pos ) )
+			. BWing_Render::stat( $item->pos > 0 ? '#' . (int) $item->pos : __( 'Not ranked', 'bwing' ), __( 'Rank', 'bwing' ), $item->peak_pos > 0 ? sprintf( /* translators: %d peak */ __( 'Peak #%d', 'bwing' ), $item->peak_pos ) : __( 'Outside the tracked top list', 'bwing' ) )
 			. BWing_Render::stat( number_format_i18n( $dl_today ), __( 'Downloads / day', 'bwing' ), sprintf( /* translators: %s prev */ __( 'prev %s', 'bwing' ), number_format_i18n( $dl_prev ) ) )
 			. BWing_Render::stat( BWing_Format::short( $dl_7 ), __( '7-day downloads', 'bwing' ) )
 			. BWing_Render::stat( BWing_Format::short( $item->downloaded ), __( 'All-time downloads', 'bwing' ) )
@@ -210,7 +211,12 @@ class BWing_Single {
 		$total   = array_sum( wp_list_pluck( $items, 'active_installs' ) );
 		$dls     = array_sum( wp_list_pluck( $items, 'downloaded' ) );
 		$o       = '<a class="bw-back" href="' . esc_url( bwing_url( 'authors' ) ) . '">← ' . esc_html__( 'Author leaderboard', 'bwing' ) . '</a>';
-		$o      .= '<header class="bw-itemhead bw-itemhead--author">' . BWing_Format::avatar( $a->slug ) . '<div class="bw-itemhead__body"><h1>' . esc_html( $a->name ) . '</h1><p class="bw-itemhead__by">@' . esc_html( $a->slug ) . ' · <a href="' . esc_url( 'https://profiles.wordpress.org/' . $a->slug . '/' ) . '" target="_blank" rel="noopener nofollow">' . esc_html__( 'WordPress.org profile ↗', 'bwing' ) . '</a></p></div></header>';
+		$pic     = (object) array( 'author_avatar' => '', 'author_url' => '' );
+		foreach ( $items as $it ) {
+			$pic->author_avatar = $pic->author_avatar ? $pic->author_avatar : $it->author_avatar;
+			$pic->author_url    = $pic->author_url ? $pic->author_url : $it->author_url;
+		}
+		$o      .= '<header class="bw-itemhead bw-itemhead--author">' . BWing_Format::avatar( $a->slug, 64, BWing_Format::author_image( $pic ) ) . '<div class="bw-itemhead__body"><h1>' . esc_html( $a->name ) . '</h1><p class="bw-itemhead__by">@' . esc_html( $a->slug ) . ' · <a href="' . esc_url( 'https://profiles.wordpress.org/' . $a->slug . '/' ) . '" target="_blank" rel="noopener nofollow">' . esc_html__( 'WordPress.org profile ↗', 'bwing' ) . '</a></p></div></header>';
 		$o      .= '<div class="bw-statgrid">' . BWing_Render::stat( BWing_Format::short( $total, true ), __( 'Total installs', 'bwing' ) ) . BWing_Render::stat( BWing_Format::short( $dls ), __( 'Total downloads', 'bwing' ) ) . BWing_Render::stat( count( $themes ), __( 'Themes', 'bwing' ) ) . BWing_Render::stat( count( $plugins ), __( 'Plugins', 'bwing' ) ) . '</div>';
 		foreach ( array( __( 'Themes', 'bwing' ) => $themes, __( 'Plugins', 'bwing' ) => $plugins ) as $label => $set ) {
 			if ( ! $set ) {

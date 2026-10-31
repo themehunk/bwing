@@ -57,6 +57,11 @@ class BWing_Sync {
 				$queue[] = array( $type, $p );
 			}
 		}
+		// Featured companies: fetch all their items, even ones outside the ranked pages.
+		foreach ( self::pinned_authors() as $author ) {
+			$queue[] = array( 'author:theme', $author );
+			$queue[] = array( 'author:plugin', $author );
+		}
 		$job = array(
 			'started' => current_time( 'mysql' ),
 			'date'    => current_time( 'Y-m-d' ),
@@ -87,6 +92,10 @@ class BWing_Sync {
 		while ( $job['queue'] && microtime( true ) < $until ) {
 			list( $type, $page ) = array_shift( $job['queue'] );
 			$job['done']++;
+			if ( 0 === strpos( $type, 'author:' ) ) {
+				$job = self::sync_author( $job, substr( $type, 7 ), $page );
+				continue;
+			}
 			$batch = 'theme' === $type ? self::fetch_themes( $page ) : self::fetch_plugins( $page );
 			if ( is_wp_error( $batch ) ) {
 				$job['errors'][] = ucfirst( $type ) . ' page ' . $page . ': ' . $batch->get_error_message();
@@ -116,6 +125,48 @@ class BWing_Sync {
 		}
 		update_option( self::JOB, $job, false );
 		$job['finished'] = false;
+		return $job;
+	}
+
+	/** WordPress.org usernames set under Sections → Featured. */
+	public static function pinned_authors() {
+		return array_slice( array_filter( array_map( 'sanitize_title', explode( ',', (string) BWing_Settings::get( 'featured', 'pinned_authors', '' ) ) ) ), 0, 10 );
+	}
+
+	/**
+	 * Store every theme or plugin by one author. Items already ranked in this run are
+	 * left alone; the rest are kept unranked (pos 0) so they can still be featured.
+	 */
+	private static function sync_author( $job, $type, $author ) {
+		global $wpdb;
+		$batch = 'theme' === $type ? self::fetch_themes( 1, $author ) : self::fetch_plugins( 1, $author );
+		if ( is_wp_error( $batch ) ) {
+			$job['errors'][] = ucfirst( $type ) . 's by ' . $author . ': ' . $batch->get_error_message();
+			return $job;
+		}
+		$t = BWing_DB::table( 'items' );
+		foreach ( $batch as $row ) {
+			$row['type'] = $type;
+			$existing    = $wpdb->get_row( $wpdb->prepare( "SELECT id, updated_at FROM {$t} WHERE type = %s AND slug = %s", $type, $row['slug'] ) );
+			if ( $existing && $existing->updated_at && $existing->updated_at >= $job['started'] ) {
+				continue; // Ranked in this run.
+			}
+			$row['pos']        = 0;
+			$row['updated_at'] = current_time( 'mysql' );
+			if ( $existing ) {
+				$wpdb->update( $t, $row, array( 'id' => $existing->id ) );
+				$id = (int) $existing->id;
+			} else {
+				$row['peak_pos']      = 0;
+				$row['first_tracked'] = current_time( 'Y-m-d' );
+				$wpdb->insert( $t, $row );
+				$id = (int) $wpdb->insert_id;
+			}
+			if ( $id ) {
+				self::snapshot( $id, $job['date'], 0, $row['active_installs'], $row['downloaded'] );
+			}
+		}
+		$job['updated'] = time();
 		return $job;
 	}
 
@@ -294,14 +345,14 @@ class BWing_Sync {
 		return is_array( $data ) ? $data : new WP_Error( 'bwing_json', 'Invalid JSON' );
 	}
 
-	public static function fetch_themes( $page ) {
+	public static function fetch_themes( $page, $author = '' ) {
 		$fields = array();
 		foreach ( array( 'active_installs', 'downloaded', 'last_updated', 'creation_time', 'tags', 'requires', 'requires_php', 'description', 'extended_author', 'rating', 'num_ratings', 'homepage', 'screenshot_url' ) as $f ) {
 			$fields[ $f ] = 1;
 		}
 		$data = self::request( self::THEMES_API, array(
 			'action'  => 'query_themes',
-			'request' => array( 'browse' => 'popular', 'per_page' => 100, 'page' => $page, 'fields' => $fields ),
+			'request' => $author ? array( 'author' => $author, 'per_page' => 100, 'page' => $page, 'fields' => $fields ) : array( 'browse' => 'popular', 'per_page' => 100, 'page' => $page, 'fields' => $fields ),
 		) );
 		if ( is_wp_error( $data ) ) {
 			return $data;
@@ -319,6 +370,8 @@ class BWing_Sync {
 				'name'            => sanitize_text_field( html_entity_decode( $th['name'] ) ),
 				'author'          => sanitize_title( isset( $author['user_nicename'] ) ? $author['user_nicename'] : '' ),
 				'author_name'     => sanitize_text_field( isset( $author['display_name'] ) ? $author['display_name'] : ( isset( $author['user_nicename'] ) ? $author['user_nicename'] : '' ) ),
+				'author_avatar'   => self::avatar_url( isset( $author['avatar'] ) ? $author['avatar'] : '' ),
+				'author_url'      => self::clean_url( isset( $author['author_url'] ) ? $author['author_url'] : '' ),
 				'version'         => sanitize_text_field( isset( $th['version'] ) ? $th['version'] : '' ),
 				'rating'          => (float) ( isset( $th['rating'] ) ? $th['rating'] : 0 ),
 				'num_ratings'     => (int) ( isset( $th['num_ratings'] ) ? $th['num_ratings'] : 0 ),
@@ -339,14 +392,14 @@ class BWing_Sync {
 		return $out;
 	}
 
-	public static function fetch_plugins( $page ) {
+	public static function fetch_plugins( $page, $author = '' ) {
 		$data = self::request( self::PLUGINS_API, array(
 			'action'  => 'query_plugins',
 			'request' => array(
-				'browse'   => 'popular',
+				$author ? 'author' : 'browse' => $author ? $author : 'popular',
 				'per_page' => 100,
 				'page'     => $page,
-				'fields'   => array( 'icons' => 1, 'active_installs' => 1, 'short_description' => 1, 'description' => 0, 'sections' => 0, 'versions' => 0, 'banners' => 0 ),
+				'fields'   => array( 'icons' => 1, 'active_installs' => 1, 'short_description' => 1, 'contributors' => 1, 'description' => 0, 'sections' => 0, 'versions' => 0, 'banners' => 0 ),
 			),
 		) );
 		if ( is_wp_error( $data ) ) {
@@ -359,11 +412,24 @@ class BWing_Sync {
 			$icons   = isset( $p['icons'] ) ? (array) $p['icons'] : array();
 			$icon    = isset( $icons['2x'] ) ? $icons['2x'] : ( isset( $icons['1x'] ) ? $icons['1x'] : ( isset( $icons['svg'] ) ? $icons['svg'] : '' ) );
 			$tags    = isset( $p['tags'] ) ? (array) $p['tags'] : array();
+			$people  = isset( $p['contributors'] ) ? (array) $p['contributors'] : array();
+			$person  = array();
+			// Only the author's own photo: other contributors (team accounts, co-devs) are a different person.
+			foreach ( $people as $user => $c ) {
+				$c_profile = is_array( $c ) && isset( $c['profile'] ) ? untrailingslashit( $c['profile'] ) : '';
+				if ( $author && ( sanitize_title( $user ) === sanitize_title( $author ) || ( $profile && untrailingslashit( $profile ) === $c_profile ) ) ) {
+					$person = $c;
+					break;
+				}
+			}
+			$site    = isset( $p['author'] ) && preg_match( '#href=["\']([^"\']+)#', $p['author'], $m ) ? $m[1] : '';
 			$out[]   = array(
 				'slug'            => sanitize_title( $p['slug'] ),
 				'name'            => sanitize_text_field( html_entity_decode( wp_strip_all_tags( $p['name'] ) ) ),
 				'author'          => sanitize_title( $author ),
 				'author_name'     => sanitize_text_field( html_entity_decode( wp_strip_all_tags( isset( $p['author'] ) ? $p['author'] : '' ) ) ),
+				'author_avatar'   => self::avatar_url( is_array( $person ) && isset( $person['avatar'] ) ? $person['avatar'] : '' ),
+				'author_url'      => self::clean_url( $site ),
 				'version'         => sanitize_text_field( isset( $p['version'] ) ? $p['version'] : '' ),
 				'rating'          => (float) ( isset( $p['rating'] ) ? $p['rating'] : 0 ),
 				'num_ratings'     => (int) ( isset( $p['num_ratings'] ) ? $p['num_ratings'] : 0 ),
@@ -381,6 +447,17 @@ class BWing_Sync {
 			);
 		}
 		return $out;
+	}
+
+	/** Gravatar at 128px. */
+	private static function avatar_url( $url ) {
+		return $url ? esc_url_raw( preg_replace( '/([?&])s=\d+/', '$1s=128', $url ) ) : '';
+	}
+
+	/** Author website without tracking parameters. */
+	private static function clean_url( $url ) {
+		$url = esc_url_raw( (string) $url );
+		return $url ? strtok( $url, '?#' ) : '';
 	}
 
 	private static function to_date( $value ) {
