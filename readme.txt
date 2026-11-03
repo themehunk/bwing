@@ -4,7 +4,7 @@ Tags: rankings, themes, plugins, statistics, theme detector
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.5.1
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,8 @@ Every shortcode reads its defaults from its dashboard section, and any attribute
 * `[bwing_featured type="both|theme|plugin"]` – Featured themes & plugins (pinned companies + daily random picks).
 * `[bwing_tools]` – AI tools directory.
 * `[bwing_submit_tool]` – Submit an AI tool form.
+* `[bwing_listings]` – Listing directory (themes, plugins, blocks, hosting, software). cate="wp-theme" per_page="18"
+* `[bwlisting cate="woocommerce" count="9"]` – Compact listing grid for one category (kept from the BlogWings theme).
 * `[bwing_login]`, `[bwing_register]`, `[bwing_account]` – Front-end account pages.
 * `[bwing_notable]` – Notable moves feed.
 * `[bwing_top type="theme|plugin" count="20"]` – Top free items.
@@ -101,6 +103,16 @@ Yes. BWing ships its own styles; the BlogWings theme simply adds tighter integra
 
 == Changelog ==
 
+= 1.6.0 - 2026-11-03 =
+* New: Listing directory at `/listing/` – search, category tabs with sub-category pills, Free/Pro filter, sorting (newest, most reviewed, A–Z) and pagination. Category and tag archives (`/listing-cate/{term}/`, `/listing-tag/{tag}/`) use the same layout.
+* New: Single listing page at `/listing/{slug}/` – badges, author link, rating (YASR), Live demo / Download / Stats buttons, screenshot, overview, key features, tags, details sidebar, share buttons, related listings and reviews, with SoftwareApplication schema.
+* New: Listing author page at `/listing/author/{name}/` – author logo, listing count by category, website link and all of the author's listings.
+* New: `[bwing_listings]` shortcode; the theme's `[bwlisting]` shortcode keeps working.
+* New: "Listing details" box (short description, demo, download, author name/URL, Free/Pro) and list columns in the admin.
+* New: WordPress.org download links become direct .zip downloads and link to the item's stats page.
+* New: "Listing" dropdown in the primary menu; starter categories are created when none exist.
+* Changed: The listing post type, categories, tags and meta keys moved from the BlogWings theme into the plugin with the same names, so existing listings and URLs keep working.
+
 = 1.5.1 - 2026-10-31 =
 * Changed: Headings, text and backgrounds use the BlogWings theme palette again (navy ink, lavender backgrounds); the lighter 700/600/400 weight scale stays.
 * Changed: Top-3 rank badges and logo backgrounds use theme colours (brand soft / surface) instead of fixed colours.
@@ -154,6 +166,9 @@ Yes. BWing ships its own styles; the BlogWings theme simply adds tighter integra
 * New: Theme template overrides via a `bwing/` folder.
 
 == Upgrade Notice ==
+
+= 1.6.0 =
+Adds the Listing directory, single listing and listing author pages. Existing listings from the BlogWings theme keep working; the Listing menu is added automatically. You can remove single-listing.php and the listing post type code from the theme.
 
 = 1.5.0 =
 Adds an AI tools directory with member submissions and front-end log in / registration. Pages and the AI Tools menu are created automatically.
